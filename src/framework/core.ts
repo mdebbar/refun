@@ -218,6 +218,34 @@ function isCommittable<C extends CommitNode = CommitNode>(
   return node.commitNode != null;
 }
 
+export function gen<T extends any[]>(
+  name: string,
+  impl: (...args: T) => IterableIterator<UI>,
+): Component<T> {
+  return stateful(name, (node: AppNode, ...args: T) => {
+    if (node.state == null) {
+      node.state = {
+        gen: impl(...args),
+        latest: null,
+      };
+    }
+
+    const { gen, latest } = node.state;
+    if (latest && latest.done) {
+      return latest.value;
+    }
+
+    const current = gen.next();
+    if (current.done && current.value !== undefined) {
+      // Keep the previous value if there was no return from the generator.
+      node.state.latest.done = true;
+    } else {
+      node.state.latest = current;
+    }
+    return node.state.latest.value;
+  });
+}
+
 export function stateful<T extends any[]>(
   name: string,
   impl: StatefulImpl<T>,

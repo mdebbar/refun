@@ -42,6 +42,9 @@ class HtmlNode extends CommitNode {
     for (let i = 0; i < commit.children.length; i++) {
       const child = commit.children[i];
       if (child.node instanceof HtmlNode) {
+        if (child.node.element instanceof Text) {
+          console.log('appending', child.node.element.textContent);
+        }
         // QUESTION: Should we store the `element` on the commit itself?
         this.element.appendChild(child.node.element);
       }
