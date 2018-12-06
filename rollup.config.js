@@ -9,12 +9,13 @@ export default {
     file: './out/bundle.js',
     format: 'iife',
   },
+  sourceMap: true,
   plugins: [
     typescript(),
-    // compiler({
-    //   compilation_level: 'ADVANCED',
-    // }),
-    // terser(),
+    compiler({
+      compilation_level: 'ADVANCED',
+    }),
+    terser(),
     serve({
       contentBase: '',
       port: 8000,

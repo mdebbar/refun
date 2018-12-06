@@ -2,8 +2,8 @@ import { AppNode } from './core';
 
 type Finder = (node: AppNode) => boolean;
 
-export function findAncestor(ndoe: AppNode, cb: Finder): AppNode | null {
-  let current: AppNode | null = ndoe;
+export function findAncestor(node: AppNode, cb: Finder): AppNode | null {
+  let current: AppNode | null = node;
   while (current != null) {
     if (cb(current)) {
       return current;
@@ -33,5 +33,6 @@ export function findDescendantByName(root: AppNode, name: string): AppNode {
     return !!t && t.toString() === `Symbol(${name})`;
   });
   expect(node).not.toBeNull();
+  // TODO[types]: At this point, we know `node` isn't null.
   return node as AppNode;
 }

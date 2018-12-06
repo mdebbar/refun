@@ -1,4 +1,5 @@
-import { CommitNode, AppNode, stateful, UI, Commit } from '../framework';
+import { CommitNode, AppNode, stateful, UI } from '../framework';
+import { SkipRate } from '../instrumentation';
 
 interface Attributes {
   [x: string]: string | null;
@@ -8,58 +9,66 @@ export function root(element: HTMLElement): HtmlRoot {
   return new HtmlRoot(element);
 }
 
-class HtmlNode extends CommitNode {
+class HtmlNode extends CommitNode<Element> {
   private tagName: string;
-  private attributes: Attributes;
   private prevTagName: string;
+
+  private attributes: Attributes;
   private prevAttributes: Attributes;
 
-  element: Node;
-
   update(tagName: string, attributes: Attributes) {
+    this.markAsDirty();
     this.prevTagName = this.tagName;
     this.prevAttributes = this.attributes;
     this.tagName = tagName;
     this.attributes = attributes;
   }
 
-  updateElement() {
-    if (this.prevTagName != this.tagName) {
-      this.element = createElement(this.tagName, this.attributes);
-    } else {
-      // TODO: Diff attributes. It's necessary because some attributes might
-      // have been set to a value earlier and now are ommitted.
-      if (this.element instanceof Element)
-        applyAttributes(this.element, this.attributes, this.prevAttributes);
-    }
+  getChildrenOfCommit(commit: Element): Element[] {
+    // TODO[types]: Necessary evil.
+    return (commit.childNodes as any) as Element[];
   }
 
-  applyCommit(commit: Commit) {
-    this.updateElement();
-    // TODO[perf]: diff child commits.
-    clearDom(this.element);
+  commit(lastCommit: Element): Element {
+    if (!lastCommit || this.tagName !== this.prevTagName) {
+      return createElement(this.tagName, this.attributes);
+    }
+    return applyAttributes(lastCommit, this.attributes, this.prevAttributes);
+  }
 
-    for (let i = 0; i < commit.children.length; i++) {
-      const child = commit.children[i];
-      if (child.node instanceof HtmlNode) {
-        if (child.node.element instanceof Text) {
-          console.log('appending', child.node.element.textContent);
-        }
-        // QUESTION: Should we store the `element` on the commit itself?
-        this.element.appendChild(child.node.element);
-      }
+  appendChild(commit: Element, child: Element) {
+    commit.appendChild(child);
+  }
+
+  replaceChildAt(commit: Element, newChild: Element, i: number) {
+    commit.replaceChild(newChild, commit.childNodes[i]);
+  }
+
+  removeChildAt(commit: Element, i: number) {
+    commit.childNodes[i].remove();
+  }
+
+  trimChildren(commit: Element, count: number) {
+    for (let i = 0; i < count; i++) {
+      // TODO[types]: We know this can't be null.
+      (commit.lastChild as ChildNode).remove();
     }
   }
 }
 
 class HtmlRoot extends HtmlNode {
-  constructor(element: HTMLElement) {
+  rootElement: Element;
+  constructor(rootElement: Element) {
     super();
-    this.element = element;
+    this.rootElement = rootElement;
   }
 
-  updateElement() {
-    // nothing..
+  commit(lastCommit: Element) {
+    if (lastCommit == null) {
+      // We are doing the initial commit, let's clear the content.
+      clearDom(this.rootElement);
+    }
+    return this.rootElement;
   }
 }
 
@@ -71,33 +80,61 @@ export const element = stateful(
     attributes: Attributes,
     children: UI,
   ) => {
-    if (node.commitNode == null) {
-      node.commitNode = new HtmlNode();
-    }
+    node.commitNode = node.commitNode || new HtmlNode();
     node.commitNode.update(tagName, attributes);
     return children;
   },
 );
 
-class TextNode extends HtmlNode {
-  constructor(text: string) {
+const noChildrenError = 'Text nodes cannot have children.';
+class TextNode<T extends Text> extends CommitNode<T> {
+  text: string;
+
+  constructor() {
     super();
+  }
+
+  update(text: string) {
+    this.markAsDirty();
     this.text = text;
   }
 
-  text: string;
+  getChildrenOfCommit() {
+    return [];
+  }
 
-  applyCommit(commit: Commit) {
-    // TODO: don't allow any children.
-    this.element = new Text(this.text);
+  commit(lastCommit: Text | null): Text {
+    if (lastCommit && lastCommit.textContent === this.text) {
+      return lastCommit;
+    }
+    return new Text(this.text);
+  }
+
+  appendChild() {
+    throw new Error(noChildrenError);
+  }
+
+  replaceChildAt() {
+    throw new Error(noChildrenError);
+  }
+
+  removeChildAt() {
+    throw new Error(noChildrenError);
+  }
+
+  trimChildren() {
+    throw new Error(noChildrenError);
   }
 }
 
-// TODO: optimize; allocate TextNodes less aggressively and reuse.
-export const text = stateful('text', (node: AppNode, text: string) => {
-  node.commitNode = new TextNode(text);
-  return null;
-});
+export const text = stateful(
+  'text',
+  (node: AppNode<TextNode>, text: string) => {
+    node.commitNode = node.commitNode || new TextNode();
+    node.commitNode.update(text);
+    return null;
+  },
+);
 
 const { hasOwnProperty: has } = Object.prototype;
 
@@ -113,27 +150,39 @@ function createElement(tagName: string, attributes: Attributes) {
   return el;
 }
 
+const rate = new SkipRate('setAttr', 0);
+
+// TODO[perf]: Styles should be an object instead of a string attribute.
 function applyAttributes(
   el: Element,
   attributes: Attributes,
   prevAttributes?: Attributes,
-) {
-  if (prevAttributes != undefined) {
-    for (const name in prevAttributes) {
-      if (has.call(prevAttributes, name) && !attributes[name]) {
-        // This attribute was set previously but not anymore.
-        el.removeAttribute(name);
-      }
+): Element {
+  prevAttributes = prevAttributes || {};
+  for (const name in prevAttributes) {
+    if (has.call(prevAttributes, name) && !attributes[name]) {
+      // This attribute was set previously but not anymore.
+      el.removeAttribute(name);
     }
   }
 
   for (const name in attributes) {
-    if (has.call(attributes, name)) {
+    if (
+      has.call(attributes, name) &&
+      attributes[name] != prevAttributes[name]
+    ) {
       const value = attributes[name];
       if (value != null) {
         el.setAttribute(name, value);
       } else {
         el.removeAttribute(name);
+      }
+    }
+
+    if (has.call(attributes, name)) {
+      rate.total();
+      if (attributes[name] == prevAttributes[name]) {
+        rate.skip();
       }
     }
   }

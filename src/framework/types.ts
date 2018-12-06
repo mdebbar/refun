@@ -32,3 +32,7 @@ export type UI = SingleUI | MultiUI;
 export type SingleUI = Render | null;
 
 export interface MultiUI extends Array<UI> {}
+
+export type VoidCallback = () => void;
+export type ScheduleFn<T> = (cb: VoidCallback) => T;
+export type UnscheduleFn<T> = (token: T) => void;
