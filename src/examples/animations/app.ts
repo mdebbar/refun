@@ -1,27 +1,22 @@
 import { column } from './layout';
 import { gradient } from './colors';
-import { gen, Scheduler, stateful, UI, AppNode } from '../../framework';
-import { text, div } from '../../html';
-
-function delay(t: number) {
-  return new Scheduler(cb => setTimeout(cb, t), token => clearTimeout(token));
-}
-
-// TODO[perf]: Provide a global requestAnimationFrame.
-function animation() {
-  return new Scheduler(requestAnimationFrame, cancelAnimationFrame);
-}
+import {
+  gen,
+  sleep,
+  animationFrame,
+  stateful,
+  UI,
+  animated,
+} from '../../framework';
+import { text, div, span, style } from '../../html';
 
 const foo = gen('foo', function*() {
-  yield text('foo1');
-  yield delay(1000);
-  yield text('foo2');
-  yield delay(1000);
-  yield text('foo3');
-  yield delay(1000);
-  yield text('foo4');
-  yield delay(1000);
-  return text('foo5');
+  let i = 0;
+  while (true) {
+    yield text(`foo${i}`);
+    yield sleep(1000);
+    i++;
+  }
 });
 
 const zoom = gen('zoom', function*(children: UI) {
@@ -29,12 +24,11 @@ const zoom = gen('zoom', function*(children: UI) {
   let direction = 1;
   let scale = 1;
   while (true) {
-    yield div(
-      {
-        style: [`transform:scale(${scale})`, 'transform-origin:0'].join(';'),
-      },
-      children,
-    );
+    yield style({
+      transform: `scale(${scale})`,
+      transformOrigin: '0',
+    })(div(null, children));
+
     scale += direction * factor;
     if (scale <= 0.5) {
       direction = 1;
@@ -43,7 +37,7 @@ const zoom = gen('zoom', function*(children: UI) {
       direction = -1;
       scale = 2;
     }
-    yield animation();
+    yield animationFrame();
   }
 });
 
@@ -56,48 +50,61 @@ const rotating = gen('rotating', function*(children: UI) {
     // TODO: explore an API that looks like this:
     //       yield animate(div(...));
     //       yield delay(div(...));
-    yield div(
-      {
-        style: [
-          `transform: rotate(${deg}deg)`,
-          'background-color: purple',
-          'margin: 8px',
-          'width: 100px',
-          'height: 100px',
-        ].join(';'),
-      },
-      children,
-    );
-    yield animation();
+    yield style({
+      transform: `rotate(${deg}deg)`,
+      backgroundColor: 'purple',
+      margin: '8px',
+      width: '100px',
+      height: '100px',
+    })(div(null, children));
+    yield animationFrame();
   }
 });
 
+let count = 0;
+const rotating2 = animated('rotating2', (children: UI) => passed => {
+  const speedFactor = 15;
+  const deg = Math.ceil((passed / speedFactor) % 360);
+  const el = count % 100 < 50 ? div : span;
+  count++;
+  return style({
+    transform: `rotate(${deg}deg)`,
+    backgroundColor: 'purple',
+    margin: '8px',
+    width: '100px',
+    height: '100px',
+  })(el(null, children));
+});
+
 function center(child: UI) {
-  return div(
-    {
-      style: ['display:flex', 'justify-content:center'].join(';'),
-    },
-    child,
-  );
+  return style({
+    display: 'flex',
+    justifyContent: 'center',
+  })(div(null, child));
 }
 
-const fast = stateful('fast', (node: AppNode, children: UI) => {
-  setTimeout(() => node.rebuild(), 5);
-  return children;
-});
+const fast = stateful(
+  'fast',
+  (children: UI) => {},
+  (node, children: UI) => {
+    setTimeout(() => node.rebuild(), 5);
+    return children;
+  },
+);
 
 export function app() {
   return column([
-    // foo(),
+    foo(),
     center([
       fast(
         rotating([
+          foo(),
           gradient.linear(0x00ff00, 0xff0000, false),
           gradient.linear(0xff0000, 0x0000ff, false),
           gradient.linear(0x0000ff, 0x000000, false),
         ]),
       ),
-      rotating([
+      rotating2([
         gradient.linear(0x00ff00, 0xff0000, false),
         gradient.linear(0xff0000, 0x0000ff, false),
         gradient.linear(0x0000ff, 0x000000, false),

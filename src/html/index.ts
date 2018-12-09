@@ -1,188 +1,235 @@
-import { CommitNode, AppNode, stateful, UI } from '../framework';
-import { SkipRate } from '../instrumentation';
+import { Committer, UI, CommitNode } from '../framework';
+import { trackSkips } from '../instrumentation';
+import { committer } from '../framework';
+import { SingleUI } from 'src/framework/core/components';
 
-interface Attributes {
+const commitNewTracker = trackSkips('commitNew', 0);
+const commitChildTracker = trackSkips('commitChild', 0);
+
+type Style = Partial<CSSStyleDeclaration>;
+type Attributes = {
   [x: string]: string | null;
-}
+};
 
 export function root(element: HTMLElement): HtmlRoot {
   return new HtmlRoot(element);
 }
 
-class HtmlNode extends CommitNode<Element> {
+class HtmlNode extends Committer<HTMLElement> {
   private tagName: string;
   private prevTagName: string;
 
-  private attributes: Attributes;
-  private prevAttributes: Attributes;
+  private attributes: Attributes | null = null;
+  private prevAttributes: Attributes | null = null;
 
-  update(tagName: string, attributes: Attributes) {
-    this.markAsDirty();
-    this.prevTagName = this.tagName;
-    this.prevAttributes = this.attributes;
-    this.tagName = tagName;
-    this.attributes = attributes;
-  }
-
-  getChildrenOfCommit(commit: Element): Element[] {
-    // TODO[types]: Necessary evil.
-    return (commit.childNodes as any) as Element[];
-  }
-
-  commit(lastCommit: Element): Element {
-    if (!lastCommit || this.tagName !== this.prevTagName) {
-      return createElement(this.tagName, this.attributes);
+  update(tagName: string, attributes: Attributes | null) {
+    if (tagName !== this.tagName || attributes !== this.attributes) {
+      this.needsCommit();
+      this.prevTagName = this.tagName;
+      this.prevAttributes = this.attributes;
+      this.tagName = tagName;
+      this.attributes = attributes;
+    } else {
+      this.needsToCheckChildCommits();
     }
-    return applyAttributes(lastCommit, this.attributes, this.prevAttributes);
   }
 
-  appendChild(commit: Element, child: Element) {
-    commit.appendChild(child);
+  commitSelf(lastCommit: HTMLElement | null): HTMLElement {
+    if (!lastCommit || this.tagName !== this.prevTagName) {
+      commitNewTracker && commitNewTracker.hit();
+      return createElement(this.tagName, this.attributes);
+    } else {
+      commitNewTracker && commitNewTracker.skip();
+    }
+    applyAttributes(lastCommit, this.attributes, this.prevAttributes);
+    return lastCommit;
   }
 
-  replaceChildAt(commit: Element, newChild: Element, i: number) {
-    commit.replaceChild(newChild, commit.childNodes[i]);
-  }
-
-  removeChildAt(commit: Element, i: number) {
-    commit.childNodes[i].remove();
-  }
-
-  trimChildren(commit: Element, count: number) {
-    for (let i = 0; i < count; i++) {
-      // TODO[types]: We know this can't be null.
-      (commit.lastChild as ChildNode).remove();
+  // TODO[perf]: explore smarter ways to diff & reuse children.
+  diffChildren(newCommit: HTMLElement, newChildren: HTMLElement[]) {
+    const currentChildren = newCommit ? newCommit.childNodes : [];
+    const currentLength = currentChildren ? currentChildren.length : 0;
+    const commonLength = Math.min(currentLength, newChildren.length);
+    let i = 0;
+    // Swap children.
+    for (; i < commonLength; i++) {
+      if (newChildren[i] !== currentChildren[i]) {
+        commitChildTracker && commitChildTracker.hit();
+        newCommit.replaceChild(newChildren[i], currentChildren[i]);
+      } else {
+        commitChildTracker && commitChildTracker.skip();
+      }
+    }
+    // Append remaining new children.
+    for (; i < newChildren.length; i++) {
+      commitChildTracker && commitChildTracker.hit();
+      newCommit.appendChild(newChildren[i]);
+    }
+    // Now remove remaining old children.
+    for (; i < currentLength; i++) {
+      commitChildTracker && commitChildTracker.hit();
+      currentChildren[i].remove();
     }
   }
 }
 
 class HtmlRoot extends HtmlNode {
-  rootElement: Element;
-  constructor(rootElement: Element) {
+  rootElement: HTMLElement;
+  constructor(rootElement: HTMLElement) {
     super();
     this.rootElement = rootElement;
   }
 
-  commit(lastCommit: Element) {
-    if (lastCommit == null) {
-      // We are doing the initial commit, let's clear the content.
-      clearDom(this.rootElement);
-    }
+  commitSelf(): HTMLElement {
     return this.rootElement;
+  }
+
+  diffChildren(newCommit: HTMLElement, newChildren: HTMLElement[]) {
+    super.diffChildren(this.rootElement, newChildren);
   }
 }
 
-export const element = stateful(
+export const element = committer(
   'element',
-  (
-    node: AppNode<HtmlNode>,
-    tagName: string,
-    attributes: Attributes,
-    children: UI,
-  ) => {
-    node.commitNode = node.commitNode || new HtmlNode();
-    node.commitNode.update(tagName, attributes);
+  () => {},
+  () => new HtmlNode(),
+  (node, tagName: string, attributes: Attributes | null, children: UI) => {
+    node.committer.update(tagName, attributes);
     return children;
   },
 );
 
-const noChildrenError = 'Text nodes cannot have children.';
-class TextNode<T extends Text> extends CommitNode<T> {
+class TextNode extends Committer<Text> {
   text: string;
 
-  constructor() {
-    super();
-  }
-
   update(text: string) {
-    this.markAsDirty();
-    this.text = text;
+    if (text !== this.text) {
+      this.needsCommit();
+      this.text = text;
+    }
   }
 
-  getChildrenOfCommit() {
-    return [];
-  }
-
-  commit(lastCommit: Text | null): Text {
+  commitSelf(lastCommit: Text | null): Text {
     if (lastCommit && lastCommit.textContent === this.text) {
       return lastCommit;
     }
     return new Text(this.text);
   }
 
-  appendChild() {
-    throw new Error(noChildrenError);
-  }
-
-  replaceChildAt() {
-    throw new Error(noChildrenError);
-  }
-
-  removeChildAt() {
-    throw new Error(noChildrenError);
-  }
-
-  trimChildren() {
-    throw new Error(noChildrenError);
+  diffChildren() {
+    // This committer doesn't have children.
   }
 }
 
-export const text = stateful(
+export const text = committer(
   'text',
-  (node: AppNode<TextNode>, text: string) => {
-    node.commitNode = node.commitNode || new TextNode();
-    node.commitNode.update(text);
+  () => {},
+  () => new TextNode(),
+  (node, text: string) => {
+    node.committer.update(text);
     return null;
   },
 );
 
-const { hasOwnProperty: has } = Object.prototype;
+class StyleCommitter extends Committer<HTMLElement> {
+  prevStyle: Style;
+  style: Style;
 
-function clearDom(node: Node) {
-  while (node.lastChild != null) {
-    node.lastChild.remove();
+  update(style: Style, el: HtmlUI) {
+    if (style !== this.style) {
+      this.needsCommit();
+      this.prevStyle = this.style;
+      this.style = style;
+    } else {
+      this.needsToCheckChildCommits();
+    }
   }
+
+  commitSelf(lastCommit: HTMLElement | null, newChildren: HTMLElement[]) {
+    const child = newChildren[0];
+    const prevStyle = lastCommit === child ? this.prevStyle : null;
+    return applyStyle(child, this.style, prevStyle);
+  }
+
+  diffChildren() {}
 }
 
-function createElement(tagName: string, attributes: Attributes) {
+type HtmlUI = SingleUI<CommitNode<HtmlNode, any, any>>;
+const _style = committer(
+  'style',
+  () => null,
+  () => new StyleCommitter(),
+  (node, style: Style, el: HtmlUI) => {
+    node.committer.update(style, el);
+    return el;
+  },
+);
+export const style = (style: Style) => (el: HtmlUI) => _style(style, el);
+
+const { hasOwnProperty: has } = Object.prototype;
+
+function createElement(tagName: string, attributes: Attributes | null) {
   const el = document.createElement(tagName);
-  applyAttributes(el, attributes);
+  applyAttributes(el, attributes, null);
   return el;
 }
 
-const rate = new SkipRate('setAttr', 0);
-
-// TODO[perf]: Styles should be an object instead of a string attribute.
 function applyAttributes(
-  el: Element,
-  attributes: Attributes,
-  prevAttributes?: Attributes,
-): Element {
-  prevAttributes = prevAttributes || {};
-  for (const name in prevAttributes) {
-    if (has.call(prevAttributes, name) && !attributes[name]) {
-      // This attribute was set previously but not anymore.
-      el.removeAttribute(name);
-    }
-  }
-
-  for (const name in attributes) {
-    if (
-      has.call(attributes, name) &&
-      attributes[name] != prevAttributes[name]
-    ) {
-      const value = attributes[name];
-      if (value != null) {
-        el.setAttribute(name, value);
-      } else {
+  el: HTMLElement,
+  attributes: Attributes | null,
+  prevAttributes: Attributes | null,
+): HTMLElement {
+  if (prevAttributes) {
+    for (const name in prevAttributes) {
+      const attr = attributes && attributes[name];
+      if (has.call(prevAttributes, name) && !attr) {
+        // This attribute was set previously but not anymore.
         el.removeAttribute(name);
       }
     }
+  }
 
-    if (has.call(attributes, name)) {
-      rate.total();
-      if (attributes[name] == prevAttributes[name]) {
-        rate.skip();
+  if (attributes) {
+    for (const name in attributes) {
+      const attr = attributes[name];
+      const prevAttr = prevAttributes && prevAttributes[name];
+      if (has.call(attributes, name) && attr != prevAttr) {
+        if (attr != null) {
+          el.setAttribute(name, attr);
+        } else {
+          el.removeAttribute(name);
+        }
+      }
+    }
+  }
+  return el;
+}
+
+function applyStyle(
+  el: HTMLElement,
+  styles: Style | null,
+  prevStyles: Style | null,
+): HTMLElement {
+  if (prevStyles) {
+    for (const name in prevStyles) {
+      const st = styles && styles[name];
+      if (has.call(prevStyles, name) && !st) {
+        // This style was set previously but not anymore.
+        el.style[name] = '';
+      }
+    }
+  }
+
+  if (styles) {
+    for (const name in styles) {
+      const st = styles[name];
+      const prevSt = prevStyles && prevStyles[name];
+      if (has.call(styles, name) && st != prevSt) {
+        if (st != null) {
+          el.style[name] = st;
+        } else {
+          el.style[name] = '';
+        }
       }
     }
   }
@@ -190,5 +237,8 @@ function applyAttributes(
 }
 
 // Shorthand for creating a div.
-export const div = (attributes: Attributes, children: UI) =>
+export const div = (attributes: Attributes | null, children: UI) =>
   element('div', attributes, children);
+// Shorthand for creating a span.
+export const span = (attributes: Attributes | null, children: UI) =>
+  element('span', attributes, children);

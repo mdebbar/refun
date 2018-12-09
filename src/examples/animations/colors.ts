@@ -1,4 +1,4 @@
-import { div } from '../../html';
+import { div, style } from '../../html';
 import { column, row } from './layout';
 
 type RGB = [number, number, number];
@@ -14,9 +14,8 @@ export const gradient = {
   circle: (from: number, to: number) => {
     const count = 50;
     const colors = [...genColors(from, to, count)];
-    return div(
-      { style: 'position:relative' },
-      colors.map((c, i) => colorCircle(c, count - i, count)),
+    return style({ position: 'relative' })(
+      div(null, colors.map((c, i) => colorCircle(c, count - i, count))),
     );
   },
 };
@@ -50,24 +49,22 @@ function colorToString(color: number): string {
 }
 
 function colorStrip(color: number, horizontal: boolean) {
-  const style = [
-    `background:${colorToString(color)}`,
-    `height:${horizontal ? '100%' : '2px'}`,
-    `width:${horizontal ? '2px' : '100%'}`,
-  ].join(';');
-  return div({ style }, null);
+  return style({
+    background: colorToString(color),
+    height: horizontal ? '100%' : '2px',
+    width: horizontal ? '2px' : '100%',
+  })(div(null, null));
 }
 
 function colorCircle(color: number, radius: number, totalRadius: number) {
   const thickness = 3;
-  const style = [
-    `width:${radius * 2 * thickness}px`,
-    `height:${radius * 2 * thickness}px`,
-    `border: 1px solid ${colorToString(color)}`,
-    `position:absolute`,
-    `top:${(totalRadius - radius) * thickness}px`,
-    `left:${(totalRadius - radius) * thickness}px`,
-    `border-radius: 50%`,
-  ].join(';');
-  return div({ style }, null);
+  return style({
+    width: `${radius * 2 * thickness}px`,
+    height: `${radius * 2 * thickness}px`,
+    border: `1px solid ${colorToString(color)}`,
+    position: 'absolute',
+    top: `${(totalRadius - radius) * thickness}px`,
+    left: `${(totalRadius - radius) * thickness}px`,
+    borderRadius: '50%',
+  })(div(null, null));
 }

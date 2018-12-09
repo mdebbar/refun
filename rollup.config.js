@@ -4,12 +4,12 @@ import typescript from 'rollup-plugin-typescript';
 import serve from 'rollup-plugin-serve';
 
 export default {
-  input: './src/examples/simple/index.ts',
+  input: './src/examples/animations/index.ts',
   output: {
     file: './out/bundle.js',
     format: 'iife',
+    sourcemap: true,
   },
-  sourceMap: true,
   plugins: [
     typescript(),
     compiler({
