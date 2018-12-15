@@ -1,120 +1,89 @@
-import { column } from './layout';
-import { gradient } from './colors';
+import { linear, circle } from './gradient';
 import {
-  gen,
-  sleep,
-  animationFrame,
-  stateful,
+  component,
   UI,
-  animated,
+  myStateNode,
+  animating,
+  CommitUI,
 } from '../../framework';
-import { text, div, span, style } from '../../html';
+import { text, div, span, style, HtmlNode } from '../../html';
+import { easeInOutQuad, EasingFn } from '../../utils/easing';
+import { center, row } from '../../utils/layout';
+import { rotating } from '../../utils/animations';
+import { absolute } from '../../utils/positions';
 
-const foo = gen('foo', function*() {
-  let i = 0;
-  while (true) {
-    yield text(`foo${i}`);
-    yield sleep(1000);
-    i++;
-  }
+const counter = component(function counter() {
+  const node = myStateNode(0);
+  node.state++;
+  return span(null, text(String(node.state)));
 });
 
-const zoom = gen('zoom', function*(children: UI) {
-  const factor = 0.01;
-  let direction = 1;
-  let scale = 1;
-  while (true) {
-    yield style({
+const scaling = animating(function scaling(
+  factor: number,
+  speed: number,
+  easing: EasingFn,
+  children: UI,
+) {
+  return passed => {
+    const t2 = ((speed * passed) / 1000) % 2;
+    const t = t2 < 1 ? t2 : 2 - t2;
+    const scale = (easing(t) * factor).toFixed(2);
+    return style({
       transform: `scale(${scale})`,
-      transformOrigin: '0',
     })(div(null, children));
+  };
+});
 
-    scale += direction * factor;
-    if (scale <= 0.5) {
-      direction = 1;
-      scale = 0.5;
-    } else if (scale >= 2) {
-      direction = -1;
-      scale = 2;
-    }
-    yield animationFrame();
+function lineup(count: number, item: UI) {
+  const children = [];
+  for (let i = 0; i < count; i++) {
+    children.push(
+      style({ alignSelf: 'center' })(rotating(1, easeInOutQuad, item)),
+    );
   }
-});
-
-const rotating = gen('rotating', function*(children: UI) {
-  const speedFactor = 10;
-  const start = Date.now();
-  while (true) {
-    const delta = Date.now() - start;
-    const deg = Math.ceil((delta / speedFactor) % 360);
-    // TODO: explore an API that looks like this:
-    //       yield animate(div(...));
-    //       yield delay(div(...));
-    yield style({
-      transform: `rotate(${deg}deg)`,
-      backgroundColor: 'purple',
-      margin: '8px',
-      width: '100px',
-      height: '100px',
-    })(div(null, children));
-    yield animationFrame();
-  }
-});
-
-let count = 0;
-const rotating2 = animated('rotating2', (children: UI) => passed => {
-  const speedFactor = 15;
-  const deg = Math.ceil((passed / speedFactor) % 360);
-  const el = count % 100 < 50 ? div : span;
-  count++;
-  return style({
-    transform: `rotate(${deg}deg)`,
-    backgroundColor: 'purple',
-    margin: '8px',
-    width: '100px',
-    height: '100px',
-  })(el(null, children));
-});
-
-function center(child: UI) {
-  return style({
-    display: 'flex',
-    justifyContent: 'center',
-  })(div(null, child));
+  return style({ justifyContent: 'space-around', height: '100%' })(
+    row(children),
+  );
 }
 
-const fast = stateful(
-  'fast',
-  (children: UI) => {},
-  (node, children: UI) => {
-    setTimeout(() => node.rebuild(), 5);
-    return children;
-  },
-);
+function corners(child: CommitUI<HtmlNode>) {
+  return [
+    absolute({
+      top: '0',
+      left: '0',
+      width: '100px',
+      transformOrigin: 'top left',
+    })(child),
+    absolute({
+      top: '0',
+      right: '0',
+      width: '100px',
+      transformOrigin: 'top right',
+    })(child),
+    absolute({
+      bottom: '0',
+      right: '0',
+      width: '100px',
+      transformOrigin: 'bottom right',
+    })(child),
+    absolute({
+      bottom: '0',
+      left: '0',
+      width: '100px',
+      transformOrigin: 'bottom left',
+    })(child),
+  ];
+}
 
 export function app() {
-  return column([
-    foo(),
-    center([
-      fast(
-        rotating([
-          foo(),
-          gradient.linear(0x00ff00, 0xff0000, false),
-          gradient.linear(0xff0000, 0x0000ff, false),
-          gradient.linear(0x0000ff, 0x000000, false),
-        ]),
+  return [
+    // corners(circle(20, 0xffff00, 0x0000ff)),
+    corners(scaling(2, 1, easeInOutQuad, circle(20, 0xffff00, 0x0000ff))),
+    lineup(10, [
+      center(counter()),
+      style({ width: '50px' })(
+        linear(false, 50, 0xffffff, 0x00ff00, 0xff0000, 0x0000ff, 0x000000),
       ),
-      rotating2([
-        gradient.linear(0x00ff00, 0xff0000, false),
-        gradient.linear(0xff0000, 0x0000ff, false),
-        gradient.linear(0x0000ff, 0x000000, false),
-      ]),
     ]),
-    zoom(gradient.circle(0xffff00, 0x0000ff)),
-    // gradient.linear(0xffffff, 0x00ff00, false),
-    // gradient.linear(0x00ff00, 0xff0000, false),
-    // gradient.linear(0xff0000, 0x0000ff, false),
-    // gradient.linear(0x0000ff, 0x000000, false),
-    // gradient.linear(0x000000, 0xffffff, false),
-  ]);
+  ];
 }

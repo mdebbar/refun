@@ -1,11 +1,8 @@
-export { stateful, createComponent } from './components';
+export { component, namedComponent, myStateNode } from './components';
 export { AppNode, DirtyState } from './build';
+export { myNode } from './global';
 
 // Necessary to re-export types :/
 import { UI, Component } from './components';
-import { AppNode } from './build';
 export type UI = UI;
-export type Component<T extends any[], N extends AppNode<any>> = Component<
-  T,
-  N
->;
+export type Component<T extends any[]> = Component<T>;

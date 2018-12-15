@@ -1,11 +1,6 @@
-import {
-  SingleUI,
-  MultiUI,
-  UI,
-  COMPONENT_TYPE,
-  NODE_CREATOR,
-} from './components';
+import { SingleUI, MultiUI, UI, COMPONENT_TYPE } from './components';
 import { trackSkips } from '../../instrumentation';
+import { openNodeCreation, closeNodeCreation } from './global';
 
 const tracker = trackSkips('build', 1000);
 
@@ -23,11 +18,14 @@ export class AppNode<S> {
   constructor(initialState: S) {
     this.state = initialState;
   }
-  dirty: DirtyState = DirtyState.SelfAndChildren;
+
+  a__name: string = '<<unknown>>';
+
+  dirty: DirtyState = DirtyState.Clean;
 
   parent: AppNode<any> | null = null;
 
-  ui: SingleUI<this>;
+  ui: SingleUI;
 
   // Some children could be null when their corresponding UI materializes
   // to null. This guarantees that all state is blown away correctly.
@@ -72,12 +70,16 @@ export class AppNode<S> {
     }
   }
 
-  protected postBuild() { }
+  protected postBuild() {
+    this.dirty = DirtyState.Clean;
+  }
 
-  updateUI(ui: SingleUI<this>) {
+  updateUI(ui: SingleUI, needsBuild: boolean = true) {
+    // TODO[correctness]: We always rebuild from the root. Does this
+    // short-circuiting allow us to reach all dirty nodes?
     if (ui !== this.ui) {
       this.ui = ui;
-      this.needsBuild();
+      needsBuild && this.needsBuild();
     }
   }
 
@@ -92,9 +94,11 @@ export class AppNode<S> {
   }
 
   buildSelf(): UI {
-    const children = this.ui(this);
-    this.dirty = DirtyState.Clean;
-    return children;
+    // TODO: Try the idea of passing the app node to SingleUI.
+    openNodeCreation(this);
+    const children = (void 0, this.ui)();
+    closeNodeCreation();
+    return children as UI;
   }
 
   // Marks all nodes in the parent chain as dirty and returns the root app node.
@@ -121,37 +125,33 @@ function build<S>(node: AppNode<S>) {
 
     case DirtyState.ChildrenOnly:
       tracker && tracker.skip();
-      visitChildren(node, build);
+      const children = node.children;
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        if (child) {
+          build(child);
+        }
+      }
       break;
 
     case DirtyState.SelfAndChildren:
       tracker && tracker.hit();
       const uiChildren = node.buildSelf();
-
-      // TODO[perf]: Reuse nodes instead of trimming them away. When a node is
-      //             recycled, make sure its state is reset.
-      if (isMultiUI(uiChildren)) {
-        const count = buildMultiUI(uiChildren, node, 0);
-        trimChildren(node, count);
-      } else {
-        forceBuildChildAtIndex(uiChildren, node, 0);
-        trimChildren(node, 1);
-      }
+      buildUIChildren(node, uiChildren);
       break;
   }
+  node.dirty = DirtyState.Clean;
 }
 
-// Visits all non-null children of `node`.
-function visitChildren<S>(
-  node: AppNode<S>,
-  visitor: (child: AppNode<any>) => void,
-) {
-  const children = node.children;
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    if (child) {
-      visitor(child);
-    }
+function buildUIChildren<S>(parent: AppNode<S>, uiChildren: UI) {
+  // TODO[perf]: Reuse nodes instead of trimming them away. When a node is
+  //             recycled, make sure its state is reset.
+  if (isMultiUI(uiChildren)) {
+    const count = buildMultiUI(uiChildren, parent, 0);
+    trimChildren(parent, count);
+  } else {
+    forceBuildChildAtIndex(uiChildren, parent, 0);
+    trimChildren(parent, 1);
   }
 }
 
@@ -160,27 +160,33 @@ function isMultiUI(ui: UI): ui is MultiUI {
 }
 
 function forceBuildChildAtIndex(
-  ui: SingleUI<AppNode<any>> | null,
+  ui: SingleUI | null,
   parent: AppNode<any>,
   i: number,
 ) {
   if (ui == null) {
     parent.children[i] = null;
   } else {
-    // const child = getChildNodeForUI(ui, parent, i);
-    let child = parent.children[i];
+    let node = parent.children[i];
     // TODO[perf]: If (child.ui === ui) skip building the subtree altogether.
     // Concern: Right now, we always rebuild from the root. If we apply the
     // optimization above, can we still reach all dirty nodes?
-    if (child && isSameComponentType(child.ui, ui)) {
+    if (node && isSameComponentType(node.ui, ui)) {
       // In this case, we should reuse the existing app node.
       // No action required.
+      node.updateUI(ui);
+      build(node);
     } else {
-      child = parent.children[i] = ui[NODE_CREATOR]();
-      child.parent = parent;
+      openNodeCreation(null);
+      const uiChildren = ui();
+      const node = closeNodeCreation();
+
+      node.parent = parent;
+      node.updateUI(ui, false);
+      parent.children[i] = node;
+
+      buildUIChildren(node, uiChildren as UI);
     }
-    child.updateUI(ui);
-    build(child);
   }
 }
 
@@ -197,10 +203,10 @@ function buildMultiUI(
   parent: AppNode<any>,
   startAt: number,
 ): number {
-  let traversed = 0;
   let it = multiUI[Symbol.iterator]();
   let result;
-  let i = 0;
+  // Corresponds to the index of the `parent` child currently being worked on.
+  let traversed = 0;
   while (!(result = it.next()).done) {
     const ui = result.value;
     if (isMultiUI(ui)) {
@@ -208,10 +214,9 @@ function buildMultiUI(
       // count.
       traversed += buildMultiUI(ui, parent, startAt + traversed);
     } else {
-      forceBuildChildAtIndex(ui, parent, startAt + i);
+      forceBuildChildAtIndex(ui, parent, startAt + traversed);
       traversed++;
     }
-    i++;
   }
   return traversed;
 }
@@ -222,7 +227,7 @@ function trimChildren(node: AppNode<any>, limit: number) {
   }
 }
 
-function isSameComponentType(ui1: SingleUI<any>, ui2: SingleUI<any>) {
+function isSameComponentType(ui1: SingleUI, ui2: SingleUI) {
   // If both are null we shouldn't consider them of equal types.
   return (
     ui1[COMPONENT_TYPE] &&

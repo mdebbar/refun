@@ -1,8 +1,10 @@
-import { AppNode, DirtyState, Component, createComponent, UI } from './core';
-import { NodeCreator } from './core/components';
+import { AppNode, DirtyState, myNode } from './core';
+import { SingleUI } from './core/components';
 import { trackSkips } from '../instrumentation';
 
-type Commit = any;
+export type Commit = any;
+// TODO[types]: This is useful, please bring it back!
+export type CommitUI<C extends Committer> = SingleUI;
 
 const commitTracker = trackSkips('commit', 1000);
 
@@ -10,7 +12,7 @@ const commitTracker = trackSkips('commit', 1000);
 // phase after the build is complete. In the case of a browser, committing means
 // updating html attributes, appending children, applying styles, etc.
 export abstract class Committer<D extends Commit = Commit> {
-  dirty: DirtyState = DirtyState.SelfAndChildren;
+  dirty: DirtyState = DirtyState.Clean;
   private lastCommit: D | null = null;
 
   needsCommit() {
@@ -23,7 +25,7 @@ export abstract class Committer<D extends Commit = Commit> {
     }
   }
 
-  commit(node: CommitNode<this, D, any>): D {
+  commit(node: CommitNode<this, any>): D {
     if (this.dirty === DirtyState.SelfAndChildren) {
       commitTracker && commitTracker.hit();
     } else {
@@ -55,22 +57,13 @@ export class NoopCommitter extends Committer<void> {
   diffChildren() {}
 }
 
-export class CommitNode<
-  C extends Committer<D>,
-  D extends Commit,
-  S
-> extends AppNode<S> {
+export class CommitNode<C extends Committer<Commit>, S> extends AppNode<S> {
   constructor(initialState: S, committer: C) {
     super(initialState);
     this.committer = committer;
   }
 
   committer: C;
-
-  // needsBuild() {
-  //   super.needsBuild();
-  //   this.committer.needsCommit();
-  // }
 
   needsChildrenBuild() {
     super.needsChildrenBuild();
@@ -88,14 +81,14 @@ export class CommitNode<
 //
 // QUESTION: should we allow commit nodes to throw? e.g. when adding children to
 //           an <img>.
-function commitChildrenRecursive<T extends Commit>(
-  node: AppNode<any> | CommitNode<Committer<T>, T, any>,
-  arr: T[] = [],
-): T[] {
+function commitChildrenRecursive<D extends Commit>(
+  node: AppNode<any> | CommitNode<Committer<D>, any>,
+  arr: D[] = [],
+): D[] {
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (child != null) {
-      if (isCommitNode<T>(child)) {
+      if (isCommitNode<D>(child)) {
         // When a child is committable, we commit it recursively and add its
         // commit as a child to the ancestor commit.
         const result = child.committer.commit(child);
@@ -104,7 +97,7 @@ function commitChildrenRecursive<T extends Commit>(
         }
         arr.push(result);
       } else {
-        // Continue recursively in the tree to find more committable nodes.
+        // Continue recursively in the tree to find more commit nodes.
         commitChildrenRecursive(child, arr);
       }
     }
@@ -112,28 +105,14 @@ function commitChildrenRecursive<T extends Commit>(
   return arr;
 }
 
-function isCommitNode<T>(
+function isCommitNode<D>(
   node: AppNode<any>,
-): node is CommitNode<Committer<T>, T, any> {
+): node is CommitNode<Committer<D>, any> {
   return node instanceof CommitNode;
 }
 
-export function committer<
-  T extends any[],
-  C extends Committer,
-  D extends Commit,
-  S
->(
-  name: string,
-  initState: () => S,
-  createComitter: () => C,
-  impl: (node: CommitNode<C, D, S>, ...args: T) => UI,
-): Component<T, CommitNode<C, D, S>> {
-  const createNode: NodeCreator<T, CommitNode<C, D, S>> = () =>
-    new CommitNode(initState(), createComitter());
-  return createComponent<T, CommitNode<C, D, S>>(
-    name,
-    createNode,
-    (...args: T) => (node: CommitNode<C, D, S>) => impl(node, ...args),
-  );
+export function myCommitNode<C extends Committer<any>>(
+  createCommitter: () => C,
+) {
+  return myNode(() => new CommitNode(null, createCommitter()));
 }

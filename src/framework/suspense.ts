@@ -1,4 +1,4 @@
-import { UI, stateful, AppNode } from './core';
+import { UI, AppNode, myStateNode, namedComponent } from './core';
 
 export function sleep(t: number) {
   return new Suspender(cb => setTimeout(cb, t), token => clearTimeout(token));
@@ -10,15 +10,15 @@ export function animationFrame() {
 }
 
 type Animated<T extends any[]> = (...args: T) => (passed: number) => UI;
-export function animated<T extends any[]>(name: string, cb: Animated<T>) {
-  return gen(name, function*(...args: T) {
+export function animating<T extends any[]>(cb: Animated<T>) {
+  return gen(function* animated(...args: T) {
     const startTime = Date.now();
     const animator = cb(...args);
     while (true) {
       yield animator(Date.now() - startTime);
       yield animationFrame();
     }
-  });
+  }, cb.name);
 }
 
 export type VoidCallback = () => void;
@@ -65,27 +65,25 @@ type State = {
 //       the generator won't be called again.
 // TODO: Does it make sense to return something from the yield statements?
 export function gen<T extends any[]>(
-  name: string,
   impl: (...args: T) => GenResult,
+  name: string = impl.name,
 ) {
-  return stateful(
-    name,
-    (...args: T) => ({
+  return namedComponent(name, (...args: T) => {
+    const node = myStateNode(() => ({
       gen: impl(...args),
       latest: null,
       suspender: null,
       isFirstRender: true,
-    }),
-    (node: AppNode<State>, ...args: T) => {
-      // TODO: Maybe provide an `onMount` hook?
-      if (node.state.isFirstRender) {
-        node.state.isFirstRender = false;
-        genNext(node);
-      }
-      // TODO[correctness]: on unmount, cancel any active suspender.
-      return node.state.latest;
-    },
-  );
+    }));
+
+    // TODO[dx]: Maybe provide an `onMount` hook?
+    if (node.state.isFirstRender) {
+      node.state.isFirstRender = false;
+      genNext(node);
+    }
+    // TODO[correctness]: on unmount, cancel any active suspender.
+    return node.state.latest;
+  });
 }
 
 function genNext(node: AppNode<State>) {
@@ -102,8 +100,6 @@ function genNext(node: AppNode<State>) {
       node.state.latest = value;
       // There's intentionally no break here. We want to keep pulling
       // values from the generator until it suspends.
-    } else {
-      // console.log('nothing!');
     }
 
     ({ value, done } = node.state.gen.next());

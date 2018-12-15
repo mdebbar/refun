@@ -1,5 +1,9 @@
 export * from './core';
-export { committer, CommitNode, Committer, NoopCommitter } from './commit';
+export { myCommitNode, CommitNode, Committer, NoopCommitter } from './commit';
 export { run } from './run';
 // export * from './finders';
-export { sleep, animationFrame, animated, gen } from './suspense';
+export { sleep, animationFrame, animating, gen } from './suspense';
+
+// Necessary to re-export types :/
+import { CommitUI, Committer } from './commit';
+export type CommitUI<C extends Committer> = CommitUI<C>;

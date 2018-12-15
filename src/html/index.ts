@@ -1,13 +1,11 @@
-import { Committer, UI, CommitNode } from '../framework';
+import { component, Committer, UI, myCommitNode, CommitUI } from '../framework';
 import { trackSkips } from '../instrumentation';
-import { committer } from '../framework';
-import { SingleUI } from 'src/framework/core/components';
 
 const commitNewTracker = trackSkips('commitNew', 0);
 const commitChildTracker = trackSkips('commitChild', 0);
 
-type Style = Partial<CSSStyleDeclaration>;
-type Attributes = {
+export type Style = Partial<CSSStyleDeclaration>;
+export type Attributes = {
   [x: string]: string | null;
 };
 
@@ -15,7 +13,7 @@ export function root(element: HTMLElement): HtmlRoot {
   return new HtmlRoot(element);
 }
 
-class HtmlNode extends Committer<HTMLElement> {
+export class HtmlNode extends Committer<HTMLElement> {
   private tagName: string;
   private prevTagName: string;
 
@@ -68,7 +66,8 @@ class HtmlNode extends Committer<HTMLElement> {
     // Now remove remaining old children.
     for (; i < currentLength; i++) {
       commitChildTracker && commitChildTracker.hit();
-      currentChildren[i].remove();
+      // TODO[types]: ugh.
+      (newCommit.lastChild as HTMLElement).remove();
     }
   }
 }
@@ -78,6 +77,7 @@ class HtmlRoot extends HtmlNode {
   constructor(rootElement: HTMLElement) {
     super();
     this.rootElement = rootElement;
+    this.needsCommit();
   }
 
   commitSelf(): HTMLElement {
@@ -89,15 +89,15 @@ class HtmlRoot extends HtmlNode {
   }
 }
 
-export const element = committer(
-  'element',
-  () => {},
-  () => new HtmlNode(),
-  (node, tagName: string, attributes: Attributes | null, children: UI) => {
-    node.committer.update(tagName, attributes);
-    return children;
-  },
-);
+export const element = component(function element(
+  tagName: string,
+  attributes: Attributes | null,
+  children: UI,
+) {
+  const node = myCommitNode(() => new HtmlNode());
+  node.committer.update(tagName, attributes);
+  return children;
+});
 
 class TextNode extends Committer<Text> {
   text: string;
@@ -121,21 +121,17 @@ class TextNode extends Committer<Text> {
   }
 }
 
-export const text = committer(
-  'text',
-  () => {},
-  () => new TextNode(),
-  (node, text: string) => {
-    node.committer.update(text);
-    return null;
-  },
-);
+export const text = component(function text(text: string) {
+  const node = myCommitNode(() => new TextNode());
+  node.committer.update(text);
+  return null;
+});
 
 class StyleCommitter extends Committer<HTMLElement> {
   prevStyle: Style;
   style: Style;
 
-  update(style: Style, el: HtmlUI) {
+  update(style: Style) {
     if (style !== this.style) {
       this.needsCommit();
       this.prevStyle = this.style;
@@ -154,16 +150,12 @@ class StyleCommitter extends Committer<HTMLElement> {
   diffChildren() {}
 }
 
-type HtmlUI = SingleUI<CommitNode<HtmlNode, any, any>>;
-const _style = committer(
-  'style',
-  () => null,
-  () => new StyleCommitter(),
-  (node, style: Style, el: HtmlUI) => {
-    node.committer.update(style, el);
-    return el;
-  },
-);
+type HtmlUI = CommitUI<HtmlNode>;
+const _style = component(function style(style: Style, el: HtmlUI) {
+  const node = myCommitNode(() => new StyleCommitter());
+  node.committer.update(style);
+  return el;
+});
 export const style = (style: Style) => (el: HtmlUI) => _style(style, el);
 
 const { hasOwnProperty: has } = Object.prototype;
@@ -239,6 +231,7 @@ function applyStyle(
 // Shorthand for creating a div.
 export const div = (attributes: Attributes | null, children: UI) =>
   element('div', attributes, children);
+
 // Shorthand for creating a span.
 export const span = (attributes: Attributes | null, children: UI) =>
   element('span', attributes, children);
