@@ -1,8 +1,17 @@
-import { SingleUI, MultiUI, UI, COMPONENT_TYPE } from './components';
+import {
+  SingleUI,
+  MultiUI,
+  UI,
+  COMPONENT_TYPE,
+  COMPONENT_NAME,
+} from './components';
 import { trackSkips } from '../../instrumentation';
 import { openNodeCreation, closeNodeCreation } from './global';
 
 const tracker = trackSkips('build', 1000);
+
+type VoidFn = () => void;
+type FrameScheduler = (cb: VoidFn) => void;
 
 // Closure Compiler doesn't like TS enums, so we have to use a class with static
 // fields to emulate an enum.
@@ -53,12 +62,14 @@ export class AppNode<S> {
 
   alreadyScheduledRebuild = false;
 
+  scheduleNextFrame: FrameScheduler = requestAnimationFrame;
+
   // Can only be invoked on the root node.
   private scheduleRebuild() {
     this.assertRoot();
     if (!this.alreadyScheduledRebuild) {
       this.alreadyScheduledRebuild = true;
-      requestAnimationFrame(() => this.immediateRebuild());
+      (void 0, this.scheduleNextFrame)(() => this.immediateRebuild());
     }
   }
 
@@ -181,6 +192,7 @@ function forceBuildChildAtIndex(
       const uiChildren = ui();
       const node = closeNodeCreation();
 
+      node.a__name = ui[COMPONENT_NAME];
       node.parent = parent;
       node.updateUI(ui, false);
       parent.children[i] = node;

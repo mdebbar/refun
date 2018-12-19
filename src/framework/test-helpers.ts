@@ -1,4 +1,4 @@
-import { CommitNode, Commit } from './core';
+import { Committer } from './commit';
 
 let incrementalCommitValue = 0;
 
@@ -8,50 +8,27 @@ export function resetCommitValue() {
   incrementalCommitValue = 0;
 }
 
-export class TestCommit<N extends CommitNode> extends Commit<N> {
+export class TestCommit {
   // Can be used to check the order of commit creation and application.
-  $started: number;
-  $applied: number;
+  value: number;
+  children: TestCommit[];
 
-  constructor(node: N) {
-    super(node);
-    this.$started = incrementalCommitValue++;
-  }
-
-  didApply() {
-    this.$applied = incrementalCommitValue++;
-  }
-
-  addChild(commit: Commit): boolean {
-    return super.addChild(commit);
+  constructor(value: number) {
+    this.value = value;
+    this.children = [];
   }
 }
 
-export class MockCommitNode extends CommitNode {
-  startCommit(): TestCommit<this> {
-    return new TestCommit(this);
+export class TestCommitter extends Committer<TestCommit> {
+  commitSelf(lastCommit: TestCommit, newChildren: TestCommit[]): TestCommit {
+    if (!lastCommit) {
+      return new TestCommit(incrementalCommitValue++);
+    }
+    lastCommit.value = incrementalCommitValue++;
+    return lastCommit;
   }
 
-  applyCommit(commit: TestCommit<this>) {
-    commit.didApply();
+  diffChildren(newCommit: TestCommit, newChildren: TestCommit[]): void {
+    newCommit.children = newChildren;
   }
 }
-
-// export class TrackedCommitNode extends CommitNode {
-//   appliedCommits: Commit<this>[];
-
-//   constructor() {
-//     super();
-//     this.appliedCommits = [];
-//   }
-
-//   startCommit(): TestCommit<this> {
-//     return new TestCommit(this);
-//   }
-//   applyCommit(commit: TestCommit<this>) {
-//     this.appliedCommits.push(commit);
-//     commit.didApply();
-//   }
-// }
-
-export class RootTestNode extends MockCommitNode {}

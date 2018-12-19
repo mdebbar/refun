@@ -8,6 +8,8 @@ export type CommitUI<C extends Committer> = SingleUI;
 
 const commitTracker = trackSkips('commit', 1000);
 
+// TODO[dx]: Instead of `commitSelf` and `diffChildren`, use `initial` and `amend`.
+
 // A `Node` in the commit tree. It knows how to commit itself during the commit
 // phase after the build is complete. In the case of a browser, committing means
 // updating html attributes, appending children, applying styles, etc.

@@ -1,7 +1,7 @@
 import { AppNode } from './build';
 import { myNode } from './global';
 
-const COMPONENT_NAME = Symbol('COMPONENT_NAME');
+export const COMPONENT_NAME = Symbol('COMPONENT_NAME');
 export const COMPONENT_TYPE = Symbol('COMPONENT_TYPE');
 
 export type Component<T extends any[]> = (...args: T) => SingleUI;

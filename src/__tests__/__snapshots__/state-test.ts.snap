@@ -1,0 +1,106 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`complex arrays 1`] = `
+%root%
+null
+[
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+]
+`;
+
+exports[`nested arrays 1`] = `
+%root%
+null
+[
+  %container%
+  null
+  [
+    null
+  ]
+]
+`;
+
+exports[`nested arrays 2`] = `
+%root%
+null
+[
+  %container%
+  null
+  [
+    null
+  ]
+]
+`;
+
+exports[`parent vs owner 1`] = `
+%root%
+null
+[
+  %container%
+  null
+  [
+    %parent%
+    null
+    [
+      %counter%
+      1
+      [
+        null
+      ],
+      %counter%
+      1
+      [
+        null
+      ]
+    ]
+  ]
+]
+`;
+
+exports[`parent vs owner 2`] = `
+%root%
+null
+[
+  %container%
+  null
+  [
+    %parent%
+    null
+    [
+      %counter%
+      2
+      [
+        null
+      ],
+      %counter%
+      1
+      [
+        null
+      ]
+    ]
+  ]
+]
+`;
+
+exports[`simple build tree 1`] = `
+%root%
+null
+[
+  %container%
+  null
+  [
+    null
+  ]
+]
+`;
