@@ -7,3 +7,4 @@
 [ ] new Suspender(...).createComponent();
 [ ](...args:T) is duplicated in `initState` of all stateful components.
 [ ] strongly typed app nodes throughout
+[ ] Need a way to distinguish `() => UI` from `SingleUI`

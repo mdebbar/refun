@@ -1,0 +1,388 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`complex commits 1`] = `
+%root%
+null
+commit value: 0*
+[
+  %committer%
+  null
+  commit value: 1*
+  [
+    %committer%
+    null
+    commit value: 2*
+    [
+      null
+    ]
+  ],
+  %committer%
+  null
+  commit value: 3*
+  [
+    %stateful%
+    1
+    [
+      null
+    ]
+  ],
+  null,
+  %statefulCommitter%
+  1
+  [
+    %committer%
+    null
+    commit value: 4*
+    [
+      %stateful%
+      1
+      [
+        %statefulCommitter%
+        1
+        [
+          %committer%
+          null
+          commit value: 5*
+          [
+            null
+          ]
+        ]
+      ],
+      %stateful%
+      1
+      [],
+      %committer%
+      null
+      commit value: 6*
+      [
+        null
+      ],
+      null
+    ]
+  ],
+  %committer%
+  null
+  commit value: 7*
+  []
+]
+`;
+
+exports[`complex commits 2`] = `
+#0* [
+  #1* [
+    #2* []
+  ],
+  #3* [],
+  #4* [
+    #5* [],
+    #6* []
+  ],
+  #7* []
+]
+`;
+
+exports[`complex recommit: after partial rebuild 1`] = `
+%root%
+null
+commit value: 0**
+[
+  %committer%
+  null
+  commit value: 1*
+  [
+    %committer%
+    null
+    commit value: 2*
+    [
+      null
+    ]
+  ],
+  %ref2%
+  null
+  [
+    %committer%
+    null
+    commit value: 3*|3*
+    [
+      %stateful%
+      2
+      [
+        null
+      ]
+    ],
+    null,
+    %statefulCommitter%
+    2
+    [
+      %committer%
+      null
+      commit value: 4*|4*
+      [
+        %ref1%
+        null
+        [
+          %stateful%
+          2
+          [
+            %statefulCommitter%
+            2
+            [
+              %committer%
+              null
+              commit value: 5*|5*
+              [
+                null
+              ]
+            ]
+          ]
+        ],
+        %stateful%
+        2
+        [],
+        %committer%
+        null
+        commit value: 6*|6*
+        [
+          null
+        ],
+        null
+      ]
+    ]
+  ],
+  %committer%
+  null
+  commit value: 7*
+  []
+]
+`;
+
+exports[`complex recommit: after partial rebuild 2`] = `
+#0** [
+  #1* [
+    #2* []
+  ],
+  #3*|3* [],
+  #4*|4* [
+    #5*|5* [],
+    #6*|6* []
+  ],
+  #7* []
+]
+`;
+
+exports[`complex recommit: after rebuild to flat 1`] = `
+%root%
+null
+commit value: 0***
+[
+  %committer%
+  null
+  commit value: 1*|1*
+  [
+    null
+  ],
+  %ref2%
+  null
+  [
+    %committer%
+    null
+    commit value: 3*|3*|3*
+    [
+      %stateful%
+      3
+      [
+        null
+      ]
+    ]
+  ],
+  null,
+  %statefulCommitter%
+  1
+  [
+    %committer%
+    null
+    commit value: 4*
+    [
+      %statefulCommitter%
+      1
+      [
+        %committer%
+        null
+        commit value: 5*
+        [
+          null
+        ]
+      ],
+      %stateful%
+      1
+      [],
+      %committer%
+      null
+      commit value: 6*
+      [
+        null
+      ],
+      null
+    ]
+  ],
+  %committer%
+  null
+  commit value: 7*
+  []
+]
+`;
+
+exports[`complex recommit: after rebuild to flat 2`] = `
+#0*** [
+  #1*|1* [],
+  #3*|3*|3* [],
+  #4* [
+    #5* [],
+    #6* []
+  ],
+  #7* []
+]
+`;
+
+exports[`complex recommit: before rebuild 1`] = `
+%root%
+null
+commit value: 0*
+[
+  %committer%
+  null
+  commit value: 1*
+  [
+    %committer%
+    null
+    commit value: 2*
+    [
+      null
+    ]
+  ],
+  %ref2%
+  null
+  [
+    %committer%
+    null
+    commit value: 3*
+    [
+      %stateful%
+      1
+      [
+        null
+      ]
+    ],
+    null,
+    %statefulCommitter%
+    1
+    [
+      %committer%
+      null
+      commit value: 4*
+      [
+        %ref1%
+        null
+        [
+          %stateful%
+          1
+          [
+            %statefulCommitter%
+            1
+            [
+              %committer%
+              null
+              commit value: 5*
+              [
+                null
+              ]
+            ]
+          ]
+        ],
+        %stateful%
+        1
+        [],
+        %committer%
+        null
+        commit value: 6*
+        [
+          null
+        ],
+        null
+      ]
+    ]
+  ],
+  %committer%
+  null
+  commit value: 7*
+  []
+]
+`;
+
+exports[`complex recommit: before rebuild 2`] = `
+#0* [
+  #1* [
+    #2* []
+  ],
+  #3* [],
+  #4* [
+    #5* [],
+    #6* []
+  ],
+  #7* []
+]
+`;
+
+exports[`simple commit 1`] = `
+#0* [
+  #1* []
+]
+`;
+
+exports[`simple recommit: after rebuild 1`] = `
+%root%
+null
+commit value: 0**
+[
+  %statefulCommitter%
+  2
+  [
+    %committer%
+    null
+    commit value: 1*|1*
+    [
+      null
+    ]
+  ]
+]
+`;
+
+exports[`simple recommit: after rebuild 2`] = `
+#0** [
+  #1*|1* []
+]
+`;
+
+exports[`simple recommit: before rebuild 1`] = `
+%root%
+null
+commit value: 0*
+[
+  %statefulCommitter%
+  1
+  [
+    %committer%
+    null
+    commit value: 1*
+    [
+      null
+    ]
+  ]
+]
+`;
+
+exports[`simple recommit: before rebuild 2`] = `
+#0* [
+  #1* []
+]
+`;

@@ -14,7 +14,7 @@ const commitTracker = trackSkips('commit', 1000);
 // phase after the build is complete. In the case of a browser, committing means
 // updating html attributes, appending children, applying styles, etc.
 export abstract class Committer<D extends Commit = Commit> {
-  dirty: DirtyState = DirtyState.Clean;
+  dirty: DirtyState = DirtyState.SelfAndChildren;
   private lastCommit: D | null = null;
 
   needsCommit() {
@@ -66,6 +66,11 @@ export class CommitNode<C extends Committer<Commit>, S> extends AppNode<S> {
   }
 
   committer: C;
+
+  needsBuild() {
+    super.needsBuild();
+    this.committer.needsToCheckChildCommits();
+  }
 
   needsChildrenBuild() {
     super.needsChildrenBuild();

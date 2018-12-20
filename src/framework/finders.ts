@@ -18,6 +18,19 @@ export function findAncestor(
 }
 
 export function findDescendant(node: AppNode<any>, cb: Finder): AppNode<any> {
+  const found = silentFindDescendant(node, cb);
+
+  if (found) {
+    return found;
+  } else {
+    throw new Error('Could not find the requested node');
+  }
+}
+
+export function silentFindDescendant(
+  node: AppNode<any>,
+  cb: Finder,
+): AppNode<any> | null {
   if (cb(node)) {
     return node;
   }
@@ -25,12 +38,12 @@ export function findDescendant(node: AppNode<any>, cb: Finder): AppNode<any> {
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (child != null) {
-      const found = findDescendant(child, cb);
+      const found = silentFindDescendant(child, cb);
       if (found) return found;
     }
   }
 
-  throw new Error('Could not find the requested node');
+  return null;
 }
 
 export function findDescendantOfType(

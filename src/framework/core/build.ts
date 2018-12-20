@@ -10,8 +10,7 @@ import { openNodeCreation, closeNodeCreation } from './global';
 
 const tracker = trackSkips('build', 1000);
 
-type VoidFn = () => void;
-type FrameScheduler = (cb: VoidFn) => void;
+type FrameScheduler = (cb: VoidFunction) => void;
 
 // Closure Compiler doesn't like TS enums, so we have to use a class with static
 // fields to emulate an enum.

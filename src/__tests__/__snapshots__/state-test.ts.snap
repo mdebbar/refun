@@ -19,6 +19,160 @@ null
 ]
 `;
 
+exports[`multiple independent rebuilds: after rebuilds 1`] = `
+%root%
+null
+[
+  %ref1%
+  null
+  [
+    %stateful%
+    2
+    [
+      null
+    ]
+  ],
+  %stateful%
+  1
+  [
+    null
+  ],
+  %stateful%
+  1
+  [
+    %ref2%
+    null
+    [
+      %stateful%
+      2
+      [
+        null
+      ]
+    ],
+    %stateful%
+    1
+    []
+  ]
+]
+`;
+
+exports[`multiple independent rebuilds: before rebuilds 1`] = `
+%root%
+null
+[
+  %ref1%
+  null
+  [
+    %stateful%
+    1
+    [
+      null
+    ]
+  ],
+  %stateful%
+  1
+  [
+    null
+  ],
+  %stateful%
+  1
+  [
+    %ref2%
+    null
+    [
+      %stateful%
+      1
+      [
+        null
+      ]
+    ],
+    %stateful%
+    1
+    []
+  ]
+]
+`;
+
+exports[`multiple nested rebuilds: after rebuilds 1`] = `
+%root%
+null
+[
+  %stateful%
+  1
+  [],
+  %ref1%
+  null
+  [
+    %stateful%
+    2
+    [
+      null,
+      %stateful%
+      2
+      [
+        null
+      ],
+      %stateful%
+      2
+      [
+        %ref2%
+        null
+        [
+          %stateful%
+          2
+          [
+            null
+          ]
+        ],
+        %stateful%
+        2
+        []
+      ]
+    ]
+  ]
+]
+`;
+
+exports[`multiple nested rebuilds: before rebuilds 1`] = `
+%root%
+null
+[
+  %stateful%
+  1
+  [],
+  %ref1%
+  null
+  [
+    %stateful%
+    1
+    [
+      null,
+      %stateful%
+      1
+      [
+        null
+      ],
+      %stateful%
+      1
+      [
+        %ref2%
+        null
+        [
+          %stateful%
+          1
+          [
+            null
+          ]
+        ],
+        %stateful%
+        1
+        []
+      ]
+    ]
+  ]
+]
+`;
+
 exports[`nested arrays 1`] = `
 %root%
 null
@@ -47,22 +201,18 @@ exports[`parent vs owner 1`] = `
 %root%
 null
 [
-  %container%
+  %parent%
   null
   [
-    %parent%
-    null
+    %stateful%
+    1
     [
-      %counter%
-      1
-      [
-        null
-      ],
-      %counter%
-      1
-      [
-        null
-      ]
+      null
+    ],
+    %stateful%
+    1
+    [
+      null
     ]
   ]
 ]
@@ -72,22 +222,18 @@ exports[`parent vs owner 2`] = `
 %root%
 null
 [
-  %container%
+  %parent%
   null
   [
-    %parent%
-    null
+    %stateful%
+    2
     [
-      %counter%
-      2
-      [
-        null
-      ],
-      %counter%
-      1
-      [
-        null
-      ]
+      null
+    ],
+    %stateful%
+    1
+    [
+      null
     ]
   ]
 ]

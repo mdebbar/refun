@@ -21,8 +21,7 @@ export function animating<T extends any[]>(cb: Animated<T>) {
   }, cb.name);
 }
 
-export type VoidCallback = () => void;
-export type ScheduleResumeFn<T> = (cb: VoidCallback) => T;
+export type ScheduleResumeFn<T> = (cb: VoidFunction) => T;
 export type UnscheduleResumeFn<T> = (token: T) => void;
 
 // TODO: explore an API that looks like this:
@@ -42,7 +41,7 @@ export class Suspender<T = any> {
     this.cancelResume = cancelResume;
   }
 
-  suspend(onResume: VoidCallback) {
+  suspend(onResume: VoidFunction) {
     this.token = (void 0, this.scheduleResume)(onResume);
   }
 

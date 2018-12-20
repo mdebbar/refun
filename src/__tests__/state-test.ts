@@ -2,23 +2,32 @@ import { run, component, UI, myStateNode } from '../framework';
 import { NoopCommitter } from '../framework/commit';
 import { stateSerializer } from '../test-helpers/snapshot-serializers';
 import { findDescendantOfType } from '../framework/finders';
+import { createRef, manageFrames } from '../test-helpers/build-helpers';
 
 expect.addSnapshotSerializer(stateSerializer);
 
-const app = (children: UI) => container(children);
+const app = (children: UI) => children;
 const container = component(function container(children: UI) {
   myStateNode(null);
   return children;
 });
 
+const stateless1 = (children: UI) => children;
+const stateless2 = (children: UI) => stateless1(children);
+const stateful = component(function stateful(children: UI) {
+  const node = myStateNode(0);
+  node.state++;
+  return stateless2(children);
+});
+
 test('simple build tree', () => {
-  const root = run(() => app(null), new NoopCommitter());
+  const root = run(() => app(container(null)), new NoopCommitter());
   expect(root).toMatchSnapshot();
 });
 
 test('nested arrays', () => {
-  const ui1 = () => app(null);
-  const ui2 = () => app([[null]]);
+  const ui1 = () => app(container(null));
+  const ui2 = () => app([container([[null]])]);
 
   // The 2 snapshots should be identical.
   expect(run(ui1, new NoopCommitter())).toMatchSnapshot();
@@ -33,15 +42,10 @@ test('complex arrays', () => {
 });
 
 test.skip('stateless root component', () => {
-  const parent = () => child();
-  const child = component(function child() {
-    const node = myStateNode(0);
-    node.state++;
-    return null;
-  });
+  const parent = () => stateful(null);
 
   const rootNode = run(parent(), new NoopCommitter());
-  const parentNode = findDescendantOfType(rootNode, parent);
+  const parentNode = findDescendantOfType(rootNode, stateful);
   expect(parentNode.state).toBe(1);
 
   rootNode.rebuild();
@@ -67,7 +71,7 @@ test('preserves state when rebuilding', () => {
   });
 
   const root = run(() => app(), new NoopCommitter());
-  root.scheduleNextFrame = cb => cb();
+  const nextFrame = manageFrames(root);
 
   const counterNode = findDescendantOfType(root, counter);
   const doubleCounterNode = findDescendantOfType(root, doubleCounter);
@@ -77,6 +81,7 @@ test('preserves state when rebuilding', () => {
 
   // Rebuild from the root.
   root.rebuild();
+  nextFrame();
   // App nodes should be preserved.
   expect(findDescendantOfType(root, counter)).toBe(counterNode);
   expect(findDescendantOfType(root, doubleCounter)).toBe(doubleCounterNode);
@@ -86,11 +91,13 @@ test('preserves state when rebuilding', () => {
 
   // Rebuild from the counter node.
   counterNode.rebuild();
+  nextFrame();
   expect(counterNode.state).toBe(3);
   expect(doubleCounterNode.state).toBe(6);
 
   // Rebuild from the double counter node.
   doubleCounterNode.rebuild();
+  nextFrame();
   expect(counterNode.state).toBe(3);
   expect(doubleCounterNode.state).toBe(8);
 });
@@ -109,6 +116,7 @@ test('complex state', () => {
   });
 
   const root = run(() => app(counter(doubleCount)), new NoopCommitter());
+  const nextFrame = manageFrames(root);
 
   const counterNode = findDescendantOfType(root, counter);
   const doubleCountNode = findDescendantOfType(root, doubleCount);
@@ -116,15 +124,15 @@ test('complex state', () => {
   expect(counterNode.state).toBe(1);
   expect(doubleCountNode.state).toBe(2);
 
-  root.scheduleNextFrame = cb => cb();
-
   // Rebuild from the root.
   root.rebuild();
+  nextFrame();
   expect(counterNode.state).toBe(2);
   expect(doubleCountNode.state).toBe(4);
 
   // Rebuild from the doubleCount node should keep the same state.
   doubleCountNode.rebuild();
+  nextFrame();
   expect(counterNode.state).toBe(2);
   expect(doubleCountNode.state).toBe(4);
 });
@@ -132,21 +140,65 @@ test('complex state', () => {
 test('parent vs owner', () => {
   const parent = component(function parent(children: UI) {
     myStateNode(null);
-    return [counter(), children];
+    return [stateful(null), children];
   });
 
-  const counter = component(function counter() {
-    const node = myStateNode(0);
-    node.state++;
-    return null;
-  });
-
-  const rootNode = run(() => app(parent(counter())), new NoopCommitter());
-  rootNode.scheduleNextFrame = cb => cb();
+  const rootNode = run(() => app(parent(stateful(null))), new NoopCommitter());
+  const nextFrame = manageFrames(rootNode);
   expect(rootNode).toMatchSnapshot();
 
   // The counter owned by `parent` should be rebuilt, but the one passed in as a
   // child won't.
   findDescendantOfType(rootNode, parent).rebuild();
+  nextFrame();
   expect(rootNode).toMatchSnapshot();
+});
+
+test('multiple independent rebuilds', () => {
+  const ref1 = createRef('ref1');
+  const ref2 = createRef('ref2');
+
+  const complex = () =>
+    app([
+      ref1(() => stateful(stateless1([null]))),
+      stateless2(stateful(null)),
+      stateful([ref2(() => stateful(stateless2(null))), stateful([])]),
+    ]);
+
+  const root = run(complex, new NoopCommitter());
+  const nextFrame = manageFrames(root);
+
+  expect(root).toMatchSnapshot('before rebuilds');
+
+  findDescendantOfType(root, ref1).rebuild();
+  findDescendantOfType(root, ref2).rebuild();
+  nextFrame();
+  expect(root).toMatchSnapshot('after rebuilds');
+});
+
+test('multiple nested rebuilds', () => {
+  const ref1 = createRef('ref1');
+  const ref2 = createRef('ref2');
+
+  const complex = () =>
+    app([
+      stateful(stateless2([])),
+      ref1(() =>
+        stateful([
+          stateless1([null]),
+          stateless2(stateful(null)),
+          stateful([ref2(() => stateful(stateless2(null))), stateful([])]),
+        ]),
+      ),
+    ]);
+
+  const root = run(complex, new NoopCommitter());
+  const nextFrame = manageFrames(root);
+
+  expect(root).toMatchSnapshot('before rebuilds');
+
+  findDescendantOfType(root, ref1).rebuild();
+  findDescendantOfType(root, ref2).rebuild();
+  nextFrame();
+  expect(root).toMatchSnapshot('after rebuilds');
 });
