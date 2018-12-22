@@ -9,11 +9,13 @@ export type Attributes = {
   [x: string]: string | null;
 };
 
+export type HtmlUI = CommitUI<HTMLElement>;
+
 export function root(element: HTMLElement): HtmlRoot {
   return new HtmlRoot(element);
 }
 
-export class HtmlNode extends Committer<HTMLElement> {
+export class HtmlCommitter extends Committer<HTMLElement> {
   private tagName: string;
   private prevTagName: string;
 
@@ -32,15 +34,22 @@ export class HtmlNode extends Committer<HTMLElement> {
     }
   }
 
-  commitSelf(lastCommit: HTMLElement | null): HTMLElement {
-    if (!lastCommit || this.tagName !== this.prevTagName) {
-      commitNewTracker && commitNewTracker.hit();
-      return createElement(this.tagName, this.attributes);
-    } else {
-      commitNewTracker && commitNewTracker.skip();
+  initial() {
+    commitNewTracker && commitNewTracker.hit();
+    return createElement(this.tagName, this.attributes);
+  }
+
+  amend(lastCommit: HTMLElement) {
+    if (this.tagName !== this.prevTagName) {
+      return this.initial();
     }
-    applyAttributes(lastCommit, this.attributes, this.prevAttributes);
-    return lastCommit;
+    commitNewTracker && commitNewTracker.skip();
+    return applyAttributes(lastCommit, this.attributes, this.prevAttributes);
+  }
+
+  amendChildren(newCommit: HTMLElement, newChildren: HTMLElement[]) {
+    this.diffChildren(newCommit, newChildren);
+    return newCommit;
   }
 
   // TODO[perf]: explore smarter ways to diff & reuse children.
@@ -72,20 +81,25 @@ export class HtmlNode extends Committer<HTMLElement> {
   }
 }
 
-class HtmlRoot extends HtmlNode {
-  rootElement: HTMLElement;
+class HtmlRoot extends HtmlCommitter {
+  private rootElement: HTMLElement;
   constructor(rootElement: HTMLElement) {
     super();
     this.rootElement = rootElement;
     this.needsCommit();
   }
 
-  commitSelf(): HTMLElement {
+  initial() {
     return this.rootElement;
   }
 
-  diffChildren(newCommit: HTMLElement, newChildren: HTMLElement[]) {
+  amend() {
+    return this.rootElement;
+  }
+
+  amendChildren(_: HTMLElement, newChildren: HTMLElement[]) {
     super.diffChildren(this.rootElement, newChildren);
+    return this.rootElement;
   }
 }
 
@@ -94,7 +108,7 @@ export const element = component(function element(
   attributes: Attributes | null,
   children: UI,
 ) {
-  const node = myCommitNode(() => new HtmlNode());
+  const node = myCommitNode(() => new HtmlCommitter());
   node.committer.update(tagName, attributes);
   return children;
 });
@@ -109,15 +123,21 @@ class TextNode extends Committer<Text> {
     }
   }
 
-  commitSelf(lastCommit: Text | null): Text {
-    if (lastCommit && lastCommit.textContent === this.text) {
-      return lastCommit;
-    }
+  initial() {
     return new Text(this.text);
   }
 
-  diffChildren() {
+  amend(commit: Text) {
+    // TODO[dx]: Do we need to check again here? It's already checked in `update()`.
+    if (commit.textContent === this.text) {
+      return commit;
+    }
+    return this.initial();
+  }
+
+  amendChildren(commit: Text) {
     // This committer doesn't have children.
+    return commit;
   }
 }
 
@@ -141,16 +161,25 @@ class StyleCommitter extends Committer<HTMLElement> {
     }
   }
 
-  commitSelf(lastCommit: HTMLElement | null, newChildren: HTMLElement[]) {
-    const child = newChildren[0];
-    const prevStyle = lastCommit === child ? this.prevStyle : null;
-    return applyStyle(child, this.style, prevStyle);
+  initial() {
+    return null;
   }
 
-  diffChildren() {}
+  amend() {
+    return null;
+  }
+
+  amendChildren(_: HTMLElement, children: HTMLElement[]) {
+    if (children.length !== 1) {
+      throw new Error(
+        `StyleCommitter expects exactly one child, but got ${children.length}`,
+      );
+    }
+    return applyStyle(children[0], this.style, this.prevStyle);
+  }
 }
 
-type HtmlUI = CommitUI<HtmlNode>;
+type HtmlUI = CommitUI<HtmlCommitter>;
 const _style = component(function style(style: Style, el: HtmlUI) {
   const node = myCommitNode(() => new StyleCommitter());
   node.committer.update(style);

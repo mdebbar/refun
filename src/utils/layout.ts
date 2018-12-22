@@ -1,8 +1,8 @@
-import { CommitUI, UI } from '../framework';
-import { style, HtmlNode, div } from '../html';
+import { UI } from '../framework';
+import { style, HtmlUI, div } from '../html';
 
 // TODO[types]: Is it possible to enforce this?
-export function center(child: CommitUI<HtmlNode>) {
+export function center(child: HtmlUI) {
   return style({
     display: 'flex',
     justifyContent: 'center',

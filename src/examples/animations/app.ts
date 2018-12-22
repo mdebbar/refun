@@ -1,12 +1,6 @@
 import { linear, circle } from './gradient';
-import {
-  component,
-  UI,
-  myStateNode,
-  animating,
-  CommitUI,
-} from '../../framework';
-import { text, div, span, style, HtmlNode } from '../../html';
+import { component, UI, myStateNode, animating } from '../../framework';
+import { text, div, span, style, HtmlUI } from '../../html';
 import { easeInOutQuad, EasingFn } from '../../utils/easing';
 import { center, row } from '../../utils/layout';
 import { rotating } from '../../utils/animations';
@@ -46,7 +40,7 @@ function lineup(count: number, item: UI) {
   );
 }
 
-function corners(child: CommitUI<HtmlNode>) {
+function corners(child: HtmlUI) {
   return [
     absolute({
       top: '0',

@@ -5,5 +5,5 @@ export { run } from './run';
 export { sleep, animationFrame, animating, gen } from './suspense';
 
 // Necessary to re-export types :/
-import { CommitUI, Committer } from './commit';
-export type CommitUI<C extends Committer> = CommitUI<C>;
+import { CommitUI, Commit } from './commit';
+export type CommitUI<D extends Commit> = CommitUI<D>;

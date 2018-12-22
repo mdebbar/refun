@@ -4,7 +4,7 @@ import { trackSkips } from '../instrumentation';
 
 export type Commit = any;
 // TODO[types]: This is useful, please bring it back!
-export type CommitUI<C extends Committer> = SingleUI;
+export type CommitUI<D extends Commit> = SingleUI;
 
 const commitTracker = trackSkips('commit', 1000);
 
@@ -39,24 +39,47 @@ export abstract class Committer<D extends Commit = Commit> {
     }
 
     const childCommits = commitChildrenRecursive(node);
-    const newCommit =
-      this.dirty === DirtyState.ChildrenOnly
-        ? (this.lastCommit as D)
-        : this.commitSelf(this.lastCommit, childCommits);
-    this.diffChildren(newCommit, childCommits);
+
+    let newCommit: D | null;
+    if (this.dirty === DirtyState.SelfAndChildren) {
+      newCommit = this.lastCommit
+        ? this.amend(this.lastCommit)
+        : this.initial();
+    } else {
+      if (this.lastCommit == null) {
+        throw new Error('Wrong dirty state on the committer');
+      }
+      newCommit = this.lastCommit;
+    }
+
+    newCommit = this.amendChildren(newCommit, childCommits);
+    if (!newCommit) {
+      throw new Error('Returned invalid commit!');
+    }
+
     this.lastCommit = newCommit;
     this.dirty = DirtyState.Clean;
     return newCommit;
   }
 
-  abstract commitSelf(lastCommit: D | null, newChildren: D[]): D;
+  abstract initial(): D | null;
 
-  abstract diffChildren(newCommit: D, newChildren: D[]): void;
+  abstract amend(lastCommit: D): D | null;
+
+  abstract amendChildren(newCommit: D | null, newChildren: D[]): D;
 }
 
-export class NoopCommitter extends Committer<void> {
-  commitSelf() {}
-  diffChildren() {}
+// Commits aren't allowed to be null, so we'll use booleans as a placeholder.
+export class NoopCommitter extends Committer<boolean> {
+  initial() {
+    return true;
+  }
+  amend() {
+    return true;
+  }
+  amendChildren() {
+    return true;
+  }
 }
 
 export class CommitNode<C extends Committer<Commit>, S> extends AppNode<S> {

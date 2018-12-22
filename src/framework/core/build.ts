@@ -160,7 +160,7 @@ function buildUIChildren<S>(parent: AppNode<S>, uiChildren: UI) {
     const count = buildMultiUI(uiChildren, parent, 0);
     trimChildren(parent, count);
   } else {
-    forceBuildChildAtIndex(uiChildren, parent, 0);
+    buildChildAtIndex(uiChildren, parent, 0);
     trimChildren(parent, 1);
   }
 }
@@ -169,7 +169,7 @@ function isMultiUI(ui: UI): ui is MultiUI {
   return ui ? Symbol.iterator in ui : false;
 }
 
-function forceBuildChildAtIndex(
+function buildChildAtIndex(
   ui: SingleUI | null,
   parent: AppNode<any>,
   i: number,
@@ -225,7 +225,7 @@ function buildMultiUI(
       // count.
       traversed += buildMultiUI(ui, parent, startAt + traversed);
     } else {
-      forceBuildChildAtIndex(ui, parent, startAt + traversed);
+      buildChildAtIndex(ui, parent, startAt + traversed);
       traversed++;
     }
   }

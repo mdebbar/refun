@@ -29,18 +29,20 @@ export class TestCommitter extends Committer<TestCommit> {
     this.needsCommit();
   }
 
-  commitSelf(lastCommit: TestCommit, newChildren: TestCommit[]): TestCommit {
-    if (!lastCommit) {
-      return new TestCommit(this.data);
-    }
-    lastCommit.value = `${lastCommit.value}|${this.data}`;
-    return lastCommit;
+  initial() {
+    return new TestCommit(this.data);
   }
 
-  diffChildren(newCommit: TestCommit, newChildren: TestCommit[]): void {
-    newCommit.value = newCommit.value + '*';
-    this.testCommit = newCommit;
-    newCommit.children = newChildren;
+  amend(commit: TestCommit) {
+    commit.value = `${commit.value}|${this.data}`;
+    return commit;
+  }
+
+  amendChildren(commit: TestCommit, children: TestCommit[]) {
+    this.testCommit = commit;
+    commit.value += '*';
+    commit.children = children;
+    return commit;
   }
 }
 
