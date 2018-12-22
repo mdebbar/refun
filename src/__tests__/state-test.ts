@@ -1,4 +1,4 @@
-import { run, component, UI, myStateNode } from '../framework';
+import { run, component, AnyUI, myStateNode } from '../framework';
 import { NoopCommitter } from '../framework/commit';
 import { stateSerializer } from '../test-helpers/snapshot-serializers';
 import { findDescendantOfType } from '../framework/finders';
@@ -6,15 +6,15 @@ import { createRef, manageFrames } from '../test-helpers/build-helpers';
 
 expect.addSnapshotSerializer(stateSerializer);
 
-const app = (children: UI) => children;
-const container = component(function container(children: UI) {
+const app = (children: AnyUI) => children;
+const container = component(function container(children: AnyUI) {
   myStateNode(null);
   return children;
 });
 
-const stateless1 = (children: UI) => children;
-const stateless2 = (children: UI) => stateless1(children);
-const stateful = component(function stateful(children: UI) {
+const stateless1 = (children: AnyUI) => children;
+const stateless2 = (children: AnyUI) => stateless1(children);
+const stateful = component(function stateful(children: AnyUI) {
   const node = myStateNode(0);
   node.state++;
   return stateless2(children);
@@ -35,22 +35,22 @@ test('nested arrays', () => {
 });
 
 test('complex arrays', () => {
-  const dup = (children: UI) => [children, children];
+  const dup = (children: AnyUI) => [children, children];
   const ui = () => dup(dup([null, dup(null)]));
   const root = run(ui, new NoopCommitter());
   expect(root).toMatchSnapshot();
 });
 
-test.skip('stateless root component', () => {
-  const parent = () => stateful(null);
+// test.skip('stateless root component', () => {
+//   const parent = () => stateful(null);
 
-  const rootNode = run(parent(), new NoopCommitter());
-  const parentNode = findDescendantOfType(rootNode, stateful);
-  expect(parentNode.state).toBe(1);
+//   const rootNode = run(parent(), new NoopCommitter());
+//   const parentNode = findDescendantOfType(rootNode, stateful);
+//   expect(parentNode.state).toBe(1);
 
-  rootNode.rebuild();
-  expect(parentNode.state).toBe(2);
-});
+//   rootNode.rebuild();
+//   expect(parentNode.state).toBe(2);
+// });
 
 test('preserves state when rebuilding', () => {
   const app = component(function app() {
@@ -103,7 +103,7 @@ test('preserves state when rebuilding', () => {
 });
 
 test('complex state', () => {
-  const counter = component(function counter(cb: (x: number) => UI) {
+  const counter = component(function counter(cb: (x: number) => AnyUI) {
     const node = myStateNode(0);
     node.state++;
     return cb(node.state);
@@ -138,7 +138,7 @@ test('complex state', () => {
 });
 
 test('parent vs owner', () => {
-  const parent = component(function parent(children: UI) {
+  const parent = component(function parent(children: AnyUI) {
     myStateNode(null);
     return [stateful(null), children];
   });

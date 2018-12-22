@@ -1,5 +1,5 @@
 import { linear, circle } from './gradient';
-import { component, UI, myStateNode, animating } from '../../framework';
+import { component, AnyUI, myStateNode, animating } from '../../framework';
 import { text, div, span, style, HtmlUI } from '../../html';
 import { easeInOutQuad, EasingFn } from '../../utils/easing';
 import { center, row } from '../../utils/layout';
@@ -16,7 +16,7 @@ const scaling = animating(function scaling(
   factor: number,
   speed: number,
   easing: EasingFn,
-  children: UI,
+  children: AnyUI,
 ) {
   return passed => {
     const t2 = ((speed * passed) / 1000) % 2;
@@ -28,7 +28,7 @@ const scaling = animating(function scaling(
   };
 });
 
-function lineup(count: number, item: UI) {
+function lineup(count: number, item: AnyUI) {
   const children = [];
   for (let i = 0; i < count; i++) {
     children.push(

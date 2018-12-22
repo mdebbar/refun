@@ -1,4 +1,10 @@
-import { component, Committer, UI, myCommitNode, CommitUI } from '../framework';
+import {
+  component,
+  Committer,
+  AnyUI,
+  myCommitNode,
+  CommitUI,
+} from '../framework';
 import { trackSkips } from '../instrumentation';
 
 const commitNewTracker = trackSkips('commitNew', 0);
@@ -106,7 +112,7 @@ class HtmlRoot extends HtmlCommitter {
 export const element = component(function element(
   tagName: string,
   attributes: Attributes | null,
-  children: UI,
+  children: AnyUI,
 ) {
   const node = myCommitNode(() => new HtmlCommitter());
   node.committer.update(tagName, attributes);
@@ -258,9 +264,9 @@ function applyStyle(
 }
 
 // Shorthand for creating a div.
-export const div = (attributes: Attributes | null, children: UI) =>
+export const div = (attributes: Attributes | null, children: AnyUI) =>
   element('div', attributes, children);
 
 // Shorthand for creating a span.
-export const span = (attributes: Attributes | null, children: UI) =>
+export const span = (attributes: Attributes | null, children: AnyUI) =>
   element('span', attributes, children);

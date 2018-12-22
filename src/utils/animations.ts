@@ -1,4 +1,4 @@
-import { animating, UI } from '../framework';
+import { animating, AnyUI } from '../framework';
 import { EasingFn } from './easing';
 import { div, style } from '../html';
 
@@ -6,7 +6,7 @@ import { div, style } from '../html';
 export const rotating = animating(function rotating(
   speed: number,
   easing: EasingFn,
-  children: UI,
+  children: AnyUI,
 ) {
   return passed => {
     const t = ((passed / 1000) * speed) % 1;

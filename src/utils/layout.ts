@@ -1,4 +1,4 @@
-import { UI } from '../framework';
+import { AnyUI } from '../framework';
 import { style, HtmlUI, div } from '../html';
 
 // TODO[types]: Is it possible to enforce this?
@@ -16,10 +16,10 @@ export function center(child: HtmlUI) {
 //   })(div(null, children));
 // }
 
-export function row(children: UI) {
+export function row(children: AnyUI) {
   return style({ display: 'flex', flexDirection: 'row' })(div(null, children));
 }
-export function column(children: UI) {
+export function column(children: AnyUI) {
   return style({ display: 'flex', flexDirection: 'column' })(
     div(null, children),
   );

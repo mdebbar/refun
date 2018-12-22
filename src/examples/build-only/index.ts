@@ -1,5 +1,5 @@
 import { run } from '../../framework/run';
-import { component, UI, NoopCommitter, myStateNode } from '../../framework';
+import { component, AnyUI, NoopCommitter, myStateNode } from '../../framework';
 
 const app = component(function app() {
   const node = myStateNode(0);
@@ -7,7 +7,7 @@ const app = component(function app() {
   return container([incrementer(node.state), incrementer(node.state), null]);
 });
 
-function container(children: UI) {
+function container(children: AnyUI) {
   return children;
 }
 

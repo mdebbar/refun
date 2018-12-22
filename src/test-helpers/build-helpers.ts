@@ -1,7 +1,7 @@
-import { AppNode, myStateNode, UI, namedComponent } from '../framework';
+import { AppNode, myStateNode, AnyUI, namedComponent } from '../framework';
 
 export function createRef(name: string) {
-  return namedComponent(name, (children: () => UI) => {
+  return namedComponent(name, (children: () => AnyUI) => {
     myStateNode(null);
     return children();
   });

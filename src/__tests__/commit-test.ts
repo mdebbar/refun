@@ -1,4 +1,4 @@
-import { run, UI, component, myStateNode } from '../framework';
+import { run, AnyUI, component, myStateNode } from '../framework';
 import { TestCommitter, committer } from '../test-helpers/commit-helpers';
 import {
   stateSerializer,
@@ -10,14 +10,14 @@ import { createRef, manageFrames } from '../test-helpers/build-helpers';
 expect.addSnapshotSerializer(stateSerializer);
 expect.addSnapshotSerializer(commitSerializer);
 
-const app = (children: UI) => children;
+const app = (children: AnyUI) => children;
 
-const stateless1 = (children: UI) => children;
-const stateless2 = (children: UI) => stateless1(children);
-const statelessCommitter = (str: string, children: UI) =>
+const stateless1 = (children: AnyUI) => children;
+const stateless2 = (children: AnyUI) => stateless1(children);
+const statelessCommitter = (str: string, children: AnyUI) =>
   stateless1(committer(str, children));
 
-const stateful = component(function stateful(children: UI) {
+const stateful = component(function stateful(children: AnyUI) {
   const node = myStateNode(0);
   node.state++;
   return stateless2(children);
@@ -25,7 +25,7 @@ const stateful = component(function stateful(children: UI) {
 
 const statefulCommitter = component(function statefulCommitter(
   str: string,
-  children: UI,
+  children: AnyUI,
 ) {
   const node = myStateNode(0);
   node.state++;

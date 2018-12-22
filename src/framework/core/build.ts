@@ -1,12 +1,7 @@
-import {
-  SingleUI,
-  MultiUI,
-  UI,
-  COMPONENT_TYPE,
-  COMPONENT_NAME,
-} from './components';
+import { SingleUI, MultiUI, AnyUI, TYPE } from './components';
 import { trackSkips } from '../../instrumentation';
 import { openNodeCreation, closeNodeCreation } from './global';
+import { invoke, NAME, isHidden } from './hiding';
 
 const tracker = trackSkips('build', 1000);
 
@@ -27,7 +22,9 @@ export class AppNode<S> {
     this.state = initialState;
   }
 
-  a__name: string = '<<unknown>>';
+  get a__name() {
+    return this.ui[NAME];
+  }
 
   dirty: DirtyState = DirtyState.Clean;
 
@@ -103,12 +100,12 @@ export class AppNode<S> {
     }
   }
 
-  buildSelf(): UI {
+  buildSelf(): AnyUI {
     // TODO: Try the idea of passing the app node to SingleUI.
     openNodeCreation(this);
-    const children = (void 0, this.ui)();
+    const children = invoke(this.ui);
     closeNodeCreation();
-    return children as UI;
+    return children;
   }
 
   // Marks all nodes in the parent chain as dirty and returns the root app node.
@@ -153,20 +150,16 @@ function build<S>(node: AppNode<S>) {
   node.dirty = DirtyState.Clean;
 }
 
-function buildUIChildren<S>(parent: AppNode<S>, uiChildren: UI) {
+function buildUIChildren<S>(parent: AppNode<S>, uiChildren: AnyUI) {
   // TODO[perf]: Reuse nodes instead of trimming them away. When a node is
   //             recycled, make sure its state is reset.
-  if (isMultiUI(uiChildren)) {
-    const count = buildMultiUI(uiChildren, parent, 0);
-    trimChildren(parent, count);
-  } else {
+  if (uiChildren == null || isSingleUI(uiChildren)) {
     buildChildAtIndex(uiChildren, parent, 0);
     trimChildren(parent, 1);
+  } else {
+    const count = buildMultiUI(uiChildren, parent, 0);
+    trimChildren(parent, count);
   }
-}
-
-function isMultiUI(ui: UI): ui is MultiUI {
-  return ui ? Symbol.iterator in ui : false;
 }
 
 function buildChildAtIndex(
@@ -188,15 +181,14 @@ function buildChildAtIndex(
       build(node);
     } else {
       openNodeCreation(null);
-      const uiChildren = ui();
+      const uiChildren = invoke(ui);
       const node = closeNodeCreation();
 
-      node.a__name = ui[COMPONENT_NAME];
       node.parent = parent;
       node.updateUI(ui, false);
       parent.children[i] = node;
 
-      buildUIChildren(node, uiChildren as UI);
+      buildUIChildren(node, uiChildren);
     }
   }
 }
@@ -220,13 +212,13 @@ function buildMultiUI(
   let traversed = 0;
   while (!(result = it.next()).done) {
     const ui = result.value;
-    if (isMultiUI(ui)) {
+    if (ui == null || isSingleUI(ui)) {
+      buildChildAtIndex(ui, parent, startAt + traversed);
+      traversed++;
+    } else {
       // Recursively traverse the nested arrays and keep track of the traversal
       // count.
       traversed += buildMultiUI(ui, parent, startAt + traversed);
-    } else {
-      buildChildAtIndex(ui, parent, startAt + traversed);
-      traversed++;
     }
   }
   return traversed;
@@ -240,9 +232,9 @@ function trimChildren(node: AppNode<any>, limit: number) {
 
 function isSameComponentType(ui1: SingleUI, ui2: SingleUI) {
   // If both are null we shouldn't consider them of equal types.
-  return (
-    ui1[COMPONENT_TYPE] &&
-    ui2[COMPONENT_TYPE] &&
-    ui1[COMPONENT_TYPE] == ui2[COMPONENT_TYPE]
-  );
+  return ui1[TYPE] && ui2[TYPE] && ui1[TYPE] == ui2[TYPE];
+}
+
+function isSingleUI(ui: AnyUI): ui is SingleUI {
+  return isHidden(ui);
 }

@@ -1,8 +1,11 @@
 import { component } from './core/components';
-import { UI, myNode } from './core';
+import { AnyUI, myNode } from './core';
 import { Committer, CommitNode } from './commit';
 
-export function run<C extends Committer<any>>(app: () => UI, rootCommitter: C) {
+export function run<C extends Committer<any>>(
+  app: () => AnyUI,
+  rootCommitter: C,
+) {
   function createNode() {
     return new CommitNode(null, rootCommitter);
   }
@@ -15,7 +18,6 @@ export function run<C extends Committer<any>>(app: () => UI, rootCommitter: C) {
   const rootUI = appWrapper();
   const rootNode = createNode();
 
-  rootNode.a__name = 'root';
   rootNode.updateUI(rootUI);
   rootNode.immediateRebuild();
   return rootNode;

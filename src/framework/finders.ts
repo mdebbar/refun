@@ -1,5 +1,5 @@
 import { AppNode, Component } from './core';
-import { COMPONENT_TYPE } from './core/components';
+import { TYPE } from './core/components';
 
 type Finder = (node: AppNode<any>) => boolean;
 
@@ -50,6 +50,6 @@ export function findDescendantOfType(
   node: AppNode<any>,
   component: Component<any>,
 ): AppNode<any> {
-  const type = component()[COMPONENT_TYPE];
-  return findDescendant(node, n => n.ui[COMPONENT_TYPE] === type);
+  const type = component()[TYPE];
+  return findDescendant(node, n => n.ui[TYPE] === type);
 }

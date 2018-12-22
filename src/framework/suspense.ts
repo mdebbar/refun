@@ -1,4 +1,4 @@
-import { UI, AppNode, myStateNode, namedComponent } from './core';
+import { AnyUI, AppNode, myStateNode, namedComponent } from './core';
 
 export function sleep(t: number) {
   return new Suspender(cb => setTimeout(cb, t), token => clearTimeout(token));
@@ -9,7 +9,7 @@ export function animationFrame() {
   return new Suspender(requestAnimationFrame, cancelAnimationFrame);
 }
 
-type Animated<T extends any[]> = (...args: T) => (passed: number) => UI;
+type Animated<T extends any[]> = (...args: T) => (passed: number) => AnyUI;
 export function animating<T extends any[]>(cb: Animated<T>) {
   return gen(function* animated(...args: T) {
     const startTime = Date.now();
@@ -50,12 +50,12 @@ export class Suspender<T = any> {
   }
 }
 
-type GenValue = UI | Suspender | PromiseLike<any>;
+type GenValue = AnyUI | Suspender | PromiseLike<any>;
 type GenResult = IterableIterator<GenValue>;
 
 type State = {
   gen: GenResult;
-  latest: UI | null;
+  latest: AnyUI | null;
   suspender: Suspender | null;
   isFirstRender: boolean;
 };

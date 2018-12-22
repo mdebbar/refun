@@ -1,4 +1,4 @@
-import { Committer, myCommitNode, component, UI } from '../framework';
+import { Committer, myCommitNode, component, AnyUI } from '../framework';
 
 export class TestCommit {
   // Can be used to check the order of commit creation and application.
@@ -48,7 +48,7 @@ export class TestCommitter extends Committer<TestCommit> {
 
 export const committer = component(function committer(
   str: string,
-  children: UI,
+  children: AnyUI,
 ) {
   const node = myCommitNode(() => new TestCommitter(str));
   node.committer.update(str);
